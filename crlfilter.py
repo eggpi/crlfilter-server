@@ -53,7 +53,7 @@ def unary_encode(n):
     return unary
 
 def binary_encode(n, nbits):
-    return bitarray.bitarray((n >> i) % 2 for i in range(nbits))
+    return bitarray.bitarray(bin((1 << nbits) + n)[3:])
 
 def hash_and_truncate(n, nbits):
     n = hex(n)[2:]
