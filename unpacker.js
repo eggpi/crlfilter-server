@@ -131,6 +131,6 @@ input.on('end', function() {
 
   var bs = new BitStream(unpacker.crls[issuer]);
   var gcs = decodeGCS(bs, unpacker.logp);
-  console.log(gcs[0]); // should be 6
-  console.log(gcs[1]); // should be 108
+  console.log(gcs[0]); // should be 37
+  console.log(gcs[1]); // should be 209
 });

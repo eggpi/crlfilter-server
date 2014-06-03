@@ -56,9 +56,14 @@ def binary_encode(n, nbits):
     return bitarray.bitarray(bin((1 << nbits) + n)[3:])
 
 def hash_and_truncate(n, nbits):
-    n = hex(n)[2:]
-    hash_as_int = int(hashlib.sha1(n).hexdigest(), 16)
-    return hash_as_int % (1 << nbits)
+    # convert n into a string of octets separated by :
+    hn = hex(long(n))[2:-1].upper()
+    n = ':'.join(hn[i] + hn[i+1] for i in range(0, len(hn) - 1, 2))
+    hash_as_hex = hashlib.sha1(n).hexdigest()
+
+    # FIXME what happens when nbits isn't divisible by 4?
+    # should be fine anyway, right?
+    return int(hash_as_hex[-nbits / 4:], 16)
 
 def golomb_encode(n, logp):
     p = (1 << logp)
