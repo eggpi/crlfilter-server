@@ -1,4 +1,5 @@
 var fs = require('fs');
+var crypto = require('crypto');
 
 function bufferToArrayBuffer(buffer) {
   var ab = new ArrayBuffer(buffer.length);
@@ -114,6 +115,11 @@ function decodeGCS(bs, logp) {
   return gcs;
 }
 
+function hash_and_truncate(n, nbits) {
+  var hash_as_hex = crypto.createHash('sha1').update(n).digest('hex');
+  return parseInt(hash_as_hex.substr(-nbits / 4), 16);
+}
+
 var crlfilter = new ArrayBuffer(0);
 var input = fs.createReadStream('crlfilter');
 input.on('data', function(data) {
@@ -133,4 +139,11 @@ input.on('end', function() {
   var gcs = decodeGCS(bs, unpacker.logp);
   console.log(gcs[0]); // should be 37
   console.log(gcs[1]); // should be 209
+
+  var cert = '11:27:50:68:93:B1:3F:F8:84:7C:BA:53:8E:DD:D5'; // first cert
+  var nbits = 20; // FIXME needs to come from the server
+  var certHash = hash_and_truncate(cert, nbits);
+  if (gcs.indexOf(certHash) !== -1) {
+    console.log('found cert in CRL, as expected!');
+  }
 });
