@@ -6,12 +6,17 @@ import hashlib
 import cPickle as pickle
 
 import bitarray
+import pyasn1.codec.der.decoder as der_decoder
 
-ISSUER_NAME_FMT = "20s" # 20-byte string
+ISSUER_HASH_FMT = "20s" # 20-byte string
 ISSUER_FILTER_LENGTH_FMT = "i" # 4-byte integer
 
 FILTER_VERSION_FMT = "i" # 4-byte integer
 FILTER_LOGP_FMT = "b" # 1-byte integer
+
+COMMON_NAME_OID = (2, 5, 4, 3)
+ORG_NAME_OID = (2, 5, 4, 10)
+ORG_UNIT_NAME_OID = (2, 5, 4, 11)
 
 class CRLFilter(object):
     def __init__(self, version, logp, issuers):
@@ -31,18 +36,42 @@ class CRLFilter(object):
 
 class IssuerCRLFilter(object):
     def __init__(self, issuer, crl, logp):
-        self.issuer = issuer
         self.entries = crl
         self.logp = logp
+        self.issuer = self.hash_issuer_fields(issuer)
 
     def tobytes(self):
         entries = gcs_encode(self.entries, self.logp).tobytes()
         result = struct.pack(
-            "=" + ISSUER_NAME_FMT + ISSUER_FILTER_LENGTH_FMT,
+            "=" + ISSUER_HASH_FMT + ISSUER_FILTER_LENGTH_FMT,
             self.issuer, len(entries))
         result += entries
 
         return result
+
+    def hash_issuer_fields(self, issuerDER):
+        decoded, _ = der_decoder.decode(issuerDER)
+
+        # get the first value for each field, this seems to be what
+        # Necko does when parsing certs
+        common_name, org_name, org_unit_name = None, None, None
+        for component in decoded:
+            for element in component:
+                oid = element[0].asTuple()
+                if oid == COMMON_NAME_OID and common_name is None:
+                    common_name = str(element[1])
+                elif oid == ORG_NAME_OID and org_name is None:
+                    org_name = str(element[1])
+                elif oid == ORG_UNIT_NAME_OID and org_unit_name is None:
+                    org_unit_name = str(element[1])
+
+        # normalize missing values to ''
+        common_name = common_name if common_name is not None else ''
+        org_name = org_name if org_name is not None else ''
+        org_unit_name = org_unit_name if org_unit_name is not None else ''
+
+        issuer = common_name + org_name + org_unit_name
+        return hashlib.sha1(issuer).digest()
 
 def bits(n):
     return int(math.ceil(math.log(n) / math.log(2))) if n else 0

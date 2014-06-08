@@ -57,7 +57,7 @@ function CRLFilterUnpacker(crlfilter) {
     var issuer = '';
     for (var i = 0; i < 20; i++) {
       var cc = dv.getUint8(offset + i);
-      issuer += cc;
+      issuer += (cc + 0x100).toString(16).substr(1);
     }
 
     this.crls[issuer] = [];
@@ -132,7 +132,11 @@ input.on('data', function(data) {
 });
 
 input.on('end', function() {
-  var issuer = '481291904911489638546192858349234821'; // the first issuer
+  // common name + org name + org unit name for the first issuer
+  var issuer = crypto.createHash('sha1').update(
+    'VeriSign Class 3 Extended Validation SSL SGC CAVeriSign, Inc.VeriSign Trust Network'
+  ).digest('hex').substr(0, 40 /* issuer hash length is fixed-size, 20 bytes */);
+
   var unpacker = new CRLFilterUnpacker(crlfilter);
 
   var bs = new BitStream(unpacker.crls[issuer]);
