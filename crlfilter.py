@@ -10,6 +10,7 @@ import pyasn1.codec.der.decoder as der_decoder
 
 ISSUER_HASH_FMT = "20s" # 20-byte string
 ISSUER_FILTER_LENGTH_FMT = "i" # 4-byte integer
+ISSUER_FILTER_NENTRIES_FMT = "i" # 4-byte integer
 
 FILTER_VERSION_FMT = "i" # 4-byte integer
 FILTER_LOGP_FMT = "b" # 1-byte integer
@@ -43,8 +44,9 @@ class IssuerCRLFilter(object):
     def tobytes(self):
         entries = gcs_encode(self.entries, self.logp).tobytes()
         result = struct.pack(
-            "=" + ISSUER_HASH_FMT + ISSUER_FILTER_LENGTH_FMT,
-            self.issuer, len(entries))
+            "=" + ISSUER_HASH_FMT + ISSUER_FILTER_NENTRIES_FMT +
+            ISSUER_FILTER_LENGTH_FMT, self.issuer, len(self.entries),
+            len(entries))
         result += entries
 
         return result

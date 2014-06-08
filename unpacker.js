@@ -60,22 +60,25 @@ function CRLFilterUnpacker(crlfilter) {
       issuer += (cc + 0x100).toString(16).substr(1);
     }
 
-    this.crls[issuer] = [];
+    this.crls[issuer] = {nentries: 0, filter: []};
     offset += 20;
+
+    this.crls[issuer].nentries = dv.getUint32(offset, littleEndian);
+    offset += 4;
 
     var length = dv.getUint32(offset, littleEndian);
     offset += 4;
 
     for (var i = 0; i < length; i++) {
       var bits = dv.getUint8(offset + i);
-      this.crls[issuer].push(bits);
+      this.crls[issuer].filter.push(bits);
     }
 
     offset += i;
 
     var filterStart = '';
     for (var i = 0; i < Math.min(length, 2); i++) {
-      var bits = this.crls[issuer][i];
+      var bits = this.crls[issuer].filter[i];
       filterStart += (bits + 0x100).toString(2).substr(1);
     }
 
@@ -115,6 +118,10 @@ function decodeGCS(bs, logp) {
   return gcs;
 }
 
+function bits(n) {
+  return Math.ceil(Math.log(n) / Math.log(2));
+}
+
 function hash_and_truncate(n, nbits) {
   var hash_as_hex = crypto.createHash('sha1').update(n).digest('hex');
   return parseInt(hash_as_hex.substr(-nbits / 4), 16);
@@ -139,13 +146,13 @@ input.on('end', function() {
 
   var unpacker = new CRLFilterUnpacker(crlfilter);
 
-  var bs = new BitStream(unpacker.crls[issuer]);
+  var bs = new BitStream(unpacker.crls[issuer].filter);
   var gcs = decodeGCS(bs, unpacker.logp);
   console.log(gcs[0]); // should be 37
   console.log(gcs[1]); // should be 209
 
   var cert = '11:27:50:68:93:B1:3F:F8:84:7C:BA:53:8E:DD:D5'; // first cert
-  var nbits = 20; // FIXME needs to come from the server
+  var nbits = bits(unpacker.crls[issuer].nentries) + unpacker.logp;
   var certHash = hash_and_truncate(cert, nbits);
   if (gcs.indexOf(certHash) !== -1) {
     console.log('found cert in CRL, as expected!');
